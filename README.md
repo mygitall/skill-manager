@@ -12,6 +12,45 @@
 
 ---
 
+---
+
+## 前置要求
+
+- **Python 3.8+**（无外部依赖，仅用标准库）
+- **tar**（macOS/Linux 自带）
+- **Git**（可选，用于版本控制）
+
+---
+
+## 安装
+
+### 方式 A：从 GitHub 克隆（推荐）
+
+```bash
+git clone https://github.com/mygitall/skill-manager.git
+cd skill-manager
+bash install.sh
+```
+
+### 方式 B：手动安装
+
+```bash
+mkdir -p ~/.agents/skills
+cp -r skill-manager ~/.agents/skills/
+chmod +x ~/.agents/skills/skill-manager/scripts/skillctl.py
+```
+
+### 验证安装
+
+```bash
+python3 ~/.agents/skills/skill-manager/scripts/skillctl.py --version
+# skillctl.py 1.0.0
+
+python3 ~/.agents/skills/skill-manager/scripts/skillctl.py list
+```
+
+---
+
 ## 一、查看类命令
 
 ---

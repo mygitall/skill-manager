@@ -1,77 +1,49 @@
-# Skill Manager Usage
+# Skill Manager — Quick Reference
 
-Use this skill with:
+Full documentation: [README.md](../README.md)
 
-```text
-$skill-manager list all installed skills
-
-Or use the helper script directly:
-
-python3 "$HOME/.agents/skills/skill-manager/scripts/skillctl.py" list
-python3 "$HOME/.agents/skills/skill-manager/scripts/skillctl.py" locations
-python3 "$HOME/.agents/skills/skill-manager/scripts/skillctl.py" search token
-python3 "$HOME/.agents/skills/skill-manager/scripts/skillctl.py" read token-saver
-python3 "$HOME/.agents/skills/skill-manager/scripts/skillctl.py" validate --all
-python3 "$HOME/.agents/skills/skill-manager/scripts/skillctl.py" create my-skill --description "Use when ..."
-python3 "$HOME/.agents/skills/skill-manager/scripts/skillctl.py" backup token-saver
-python3 "$HOME/.agents/skills/skill-manager/scripts/skillctl.py" delete token-saver
-python3 "$HOME/.agents/skills/skill-manager/scripts/skillctl.py" delete token-saver --yes
-python3 "$HOME/.agents/skills/skill-manager/scripts/skillctl.py" restore "$HOME/.agents/skills/.trash/token-saver-YYYYMMDD-HHMMSS"
-python3 "$HOME/.agents/skills/skill-manager/scripts/skillctl.py" restore "$HOME/.agents/skills/.trash/token-saver-YYYYMMDD-HHMMSS" --yes
-
-Delete is safe by default:
-
-Creates a backup.
-Moves the skill to .trash.
-Requires --yes for actual move.
-
-The script manages:
-
-user skills: $HOME/.agents/skills
-repo skills: .agents/skills locations from the current directory up to the git root
-
-It does not manage admin/system skills by default.
-
-## Migration
-
-### Old Mac: export skills only
+## Quick commands
 
 ```bash
-python3 ~/.agents/skills/skill-manager/scripts/skillctl.py export
+SCRIPT=~/.agents/skills/skill-manager/scripts/skillctl.py
+
+# View
+$SCRIPT list                     # list all skills
+$SCRIPT search <keyword>         # search by keyword
+$SCRIPT read <name>              # read first 80 lines
+$SCRIPT locations                # show managed dirs
+
+# Validate
+$SCRIPT validate --all           # validate all skills
+$SCRIPT validate <name>          # validate one skill
+
+# Manage
+$SCRIPT create <name> --description "..."   # create new skill
+$SCRIPT backup <name>                        # backup skill
+$SCRIPT delete <name>                        # dry-run delete
+$SCRIPT delete <name> --yes                  # safe delete (backup + trash)
+$SCRIPT restore <path> --yes                 # restore from trash/backup
+
+# Migration
+$SCRIPT export                                # export skills only
+$SCRIPT export --include-all-user-config      # export everything
+$SCRIPT verify-archive <file.tar.gz>          # verify archive
+$SCRIPT import <file.tar.gz>                  # dry-run import
+$SCRIPT import <file.tar.gz> --yes            # confirm import
+
+# Version
+$SCRIPT --version                  # skillctl.py 1.0.0
 ```
 
-### Old Mac: export everything (skills + AGENTS.md + hooks + prompts)
+## Codex shortcuts
 
-```bash
-python3 ~/.agents/skills/skill-manager/scripts/skillctl.py export --include-all-user-config
+```
+$skill-manager list all skills
+/prompts:skili search <keyword>
 ```
 
-### New Mac: extract and preview
+## Safety defaults
 
-```bash
-tar -xzf ~/Desktop/codex-skills-migration-YYYYMMDD-HHMMSS.tar.gz
-cd codex-skill-migration
-python3 install_import.py --dry-run
-```
-
-### New Mac: confirm import (standalone, no skill-manager needed)
-
-```bash
-python3 install_import.py --yes
-```
-
-### New Mac: using skill-manager (if already installed)
-
-```bash
-python3 ~/.agents/skills/skill-manager/scripts/skillctl.py verify-archive ~/Desktop/codex-skills-migration-YYYYMMDD-HHMMSS.tar.gz
-python3 ~/.agents/skills/skill-manager/scripts/skillctl.py import ~/Desktop/codex-skills-migration-YYYYMMDD-HHMMSS.tar.gz
-python3 ~/.agents/skills/skill-manager/scripts/skillctl.py import ~/Desktop/codex-skills-migration-YYYYMMDD-HHMMSS.tar.gz --yes
-```
-
-### Import modes
-
-```bash
-python3 ~/.agents/skills/skill-manager/scripts/skillctl.py import archive.tar.gz --mode merge --yes
-python3 ~/.agents/skills/skill-manager/scripts/skillctl.py import archive.tar.gz --mode overwrite --yes
-python3 ~/.agents/skills/skill-manager/scripts/skillctl.py import archive.tar.gz --mode skip-existing --yes
-```
+- Delete: backup first, then move to `.trash/`, requires `--yes`
+- Import: dry-run by default, `--yes` to write
+- Export: secret scan excludes sensitive files
