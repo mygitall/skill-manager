@@ -1046,6 +1046,33 @@ def cmd_export(args: argparse.Namespace) -> int:
     if all_warnings:
             print(f"- Warnings: {len(all_warnings)}")
 
+    # Push to GitHub if requested
+    if args.push:
+        repo_dir = Path(__file__).resolve().parent.parent
+        exports_dir = repo_dir / "exports"
+        exports_dir.mkdir(parents=True, exist_ok=True)
+        dest_copy = exports_dir / output.name
+        shutil.copy2(output, dest_copy)
+        import subprocess
+        result = subprocess.run(
+            ["git", "add", "exports/", "-f"],
+            cwd=repo_dir, capture_output=True, text=True
+        )
+        result = subprocess.run(
+            ["git", "commit", "-m", f"backup: {output.name}"],
+            cwd=repo_dir, capture_output=True, text=True
+        )
+        result = subprocess.run(
+            ["git", "push"],
+            cwd=repo_dir, capture_output=True, text=True
+        )
+        if result.returncode == 0:
+            print("\nPush to GitHub:")
+            print(f"- copied: exports/{output.name}")
+            print("- pushed to GitHub OK")
+        else:
+            print(f"\nGitHub push failed: {result.stderr.strip()}")
+
     return 0
 
 
@@ -1418,6 +1445,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--include-prompts", action="store_true")
     p.add_argument("--include-all-user-config", action="store_true")
     p.add_argument("--allow-secrets", action="store_true")
+    p.add_argument("--push", action="store_true")
     p.set_defaults(func=cmd_export)
 
     p = sub.add_parser("verify-archive")
