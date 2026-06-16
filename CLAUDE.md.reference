@@ -1,0 +1,60 @@
+# CLAUDE.md — Global Instructions
+
+## Skill management
+
+When the user asks to manage, list, inspect, create, edit, delete, backup, restore, or validate Codex Skills, use the `skill-manager` helper script.
+
+Skill manager path: `~/.agents/skills/skill-manager/scripts/skillctl.py`
+
+### Available commands
+
+```bash
+SKILLCTL=~/.agents/skills/skill-manager/scripts/skillctl.py
+
+# View
+$SKILLCTL list                        # list all installed skills
+$SKILLCTL search <keyword>            # search by keyword
+$SKILLCTL read <skill-name>           # read skill metadata + first 80 lines
+$SKILLCTL read <skill-name> --full    # read complete skill
+$SKILLCTL locations                   # show managed directories
+
+# Validate
+$SKILLCTL validate --all              # validate all skills
+$SKILLCTL validate <skill-name>       # validate one skill
+
+# Manage
+$SKILLCTL create <name> --description "..."   # create new skill
+$SKILLCTL backup <skill-name>                  # backup skill
+$SKILLCTL delete <skill-name>                  # dry-run delete (preview)
+$SKILLCTL delete <skill-name> --yes            # safe delete (backup + trash)
+$SKILLCTL restore <trash-or-backup-path>       # dry-run restore
+$SKILLCTL restore <trash-or-backup-path> --yes # confirm restore
+
+# Migration
+$SKILLCTL export                                # export skills only → Desktop
+$SKILLCTL export --include-all-user-config      # export everything (skills+AGENTS+hooks+prompts)
+$SKILLCTL export --output <path>                # export to custom path
+$SKILLCTL verify-archive <archive.tar.gz>       # verify archive integrity
+$SKILLCTL import <archive.tar.gz>               # dry-run import (preview)
+$SKILLCTL import <archive.tar.gz> --yes         # confirm import (merge mode)
+$SKILLCTL import <archive.tar.gz> --yes --mode overwrite      # overwrite mode
+$SKILLCTL import <archive.tar.gz> --yes --mode skip-existing  # skip existing
+
+# Version
+$SKILLCTL --version                   # skillctl.py 1.0.0
+```
+
+### Safety rules
+
+- Never permanently delete a skill without backup.
+- Delete operations: backup first, then move to `.trash/`. Require `--yes` for actual move.
+- Import operations: always dry-run first, show conflicts, then ask before `--yes`.
+- Never modify system-level or admin-level skills.
+- Never modify business project code.
+- Keep output concise. Do not paste full files unless asked.
+
+### Repository
+
+https://github.com/mygitall/skill-manager
+
+To install: `git clone https://github.com/mygitall/skill-manager.git && cd skill-manager && bash install.sh`
