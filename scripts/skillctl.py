@@ -307,9 +307,13 @@ def cmd_validate(args: argparse.Namespace) -> int:
 
 
 def backup_skill_dir(p: Path) -> Path:
+    """Backup a file or directory to .backups/ with timestamp."""
     USER_BACKUPS.mkdir(parents=True, exist_ok=True)
     dest = USER_BACKUPS / f"{p.name}-{now_stamp()}"
-    shutil.copytree(p, dest)
+    if p.is_dir():
+        shutil.copytree(p, dest)
+    else:
+        shutil.copy2(p, dest)
     return dest
 
 
@@ -521,6 +525,7 @@ def collect_export_files(
     include_agents: bool,
     include_hooks: bool,
     include_prompts: bool,
+    skill_name: str = "",
 ) -> Tuple[List[Tuple[Path, str]], List[str]]:
     """Collect skill files and optional config files for export.
 
@@ -536,6 +541,11 @@ def collect_export_files(
             if not child.is_dir():
                 continue
             if child.name in {".trash", ".backups"}:
+                continue
+            if skill_name and child.name != skill_name and not (
+                (child / "SKILL.md").exists() and
+                read_metadata(child / "SKILL.md").get("name") == skill_name
+            ):
                 continue
             md = child / "SKILL.md"
             if not md.exists():
@@ -943,7 +953,7 @@ def cmd_export(args: argparse.Namespace) -> int:
 
     print("Collecting files for export...")
 
-    files, warnings = collect_export_files(include_agents, include_hooks, include_prompts)
+    files, warnings = collect_export_files(include_agents, include_hooks, include_prompts, args.skill)
 
     if not files:
         print("ERROR: No files to export.", file=sys.stderr)
@@ -1034,7 +1044,7 @@ def cmd_export(args: argparse.Namespace) -> int:
     print(f"- Hooks: {'yes' if include_hooks else 'no'}")
     print(f"- Prompts: {'yes' if include_prompts else 'no'}")
     if all_warnings:
-        print(f"- Warnings: {len(all_warnings)}")
+            print(f"- Warnings: {len(all_warnings)}")
 
     return 0
 
@@ -1256,107 +1266,107 @@ def cmd_import(args: argparse.Namespace) -> int:
                 continue
             tar.extract(member, tmp)
 
-    tar.close()
+        tar.close()
 
-    extracted = tmp / "codex-skill-migration"
+        extracted = tmp / "codex-skill-migration"
 
-    # Import skills
-    skills_src = extracted / "user-skills"
-    if has_skills and skills_src.exists():
-        existing_skills: Set[str] = set()
-        if USER_SKILLS.exists():
-            existing_skills = {d.name for d in USER_SKILLS.iterdir()
-                               if d.is_dir() and (d / "SKILL.md").exists()
-                               and d.name not in {".trash", ".backups"}}
+        # Import skills
+        skills_src = extracted / "user-skills"
+        if has_skills and skills_src.exists():
+            existing_skills: Set[str] = set()
+            if USER_SKILLS.exists():
+                existing_skills = {d.name for d in USER_SKILLS.iterdir()
+                                   if d.is_dir() and (d / "SKILL.md").exists()
+                                   and d.name not in {".trash", ".backups"}}
 
-        USER_SKILLS.mkdir(parents=True, exist_ok=True)
-        for child in sorted(skills_src.iterdir()):
-            if not child.is_dir():
-                continue
-            if not (child / "SKILL.md").exists():
-                continue
-            dest = USER_SKILLS / child.name
-
-            if dest.exists():
-                if mode == "skip-existing":
-                    print(f"SKIP: {child.name} (already exists)")
+            USER_SKILLS.mkdir(parents=True, exist_ok=True)
+            for child in sorted(skills_src.iterdir()):
+                if not child.is_dir():
                     continue
-                bkp = backup_skill_dir(dest)
-                print(f"BACKUP: {bkp}")
-                shutil.rmtree(dest)
+                if not (child / "SKILL.md").exists():
+                    continue
+                dest = USER_SKILLS / child.name
 
-            print(f"IMPORT: {child.name}")
-            shutil.copytree(child, dest)
+                if dest.exists():
+                    if mode == "skip-existing":
+                        print(f"SKIP: {child.name} (already exists)")
+                        continue
+                    bkp = backup_skill_dir(dest)
+                    print(f"BACKUP: {bkp}")
+                    shutil.rmtree(dest)
 
-    # Import AGENTS.md
-    agents_src = extracted / "optional" / "codex" / "AGENTS.md"
-    if has_agents and agents_src.exists():
-        stamp = now_stamp()
-        marker_start = f"<!-- imported-codex-agents-start: {stamp} -->"
-        marker_end = "<!-- imported-codex-agents-end -->"
-        content = agents_src.read_text(encoding="utf-8")
-        block = f"\n{marker_start}\n{content}\n{marker_end}\n"
+                print(f"IMPORT: {child.name}")
+                shutil.copytree(child, dest)
 
-        agents_dest = USER_AGENTS_MD
-        if agents_dest.exists():
-            existing = agents_dest.read_text(encoding="utf-8")
-            agents_hash = sha256_file(agents_src)
-            if agents_hash in existing:
-                print("SKIP AGENTS.md (already imported from this archive)")
+        # Import AGENTS.md
+        agents_src = extracted / "optional" / "codex" / "AGENTS.md"
+        if has_agents and agents_src.exists():
+            stamp = now_stamp()
+            marker_start = f"<!-- imported-codex-agents-start: {stamp} -->"
+            marker_end = "<!-- imported-codex-agents-end -->"
+            content = agents_src.read_text(encoding="utf-8")
+            block = f"\n{marker_start}\n{content}\n{marker_end}\n"
+
+            agents_dest = USER_AGENTS_MD
+            if agents_dest.exists():
+                existing = agents_dest.read_text(encoding="utf-8")
+                agents_hash = sha256_file(agents_src)
+                if agents_hash in existing:
+                    print("SKIP AGENTS.md (already imported from this archive)")
+                else:
+                    bkp = backup_skill_dir(agents_dest)
+                    print(f"BACKUP AGENTS.md: {bkp}")
+                    agents_dest.write_text(existing + block, encoding="utf-8")
+                    print("APPEND AGENTS.md")
             else:
-                bkp = backup_skill_dir(agents_dest)
-                print(f"BACKUP AGENTS.md: {bkp}")
-                agents_dest.write_text(existing + block, encoding="utf-8")
-                print("APPEND AGENTS.md")
-        else:
-            USER_CODEX.mkdir(parents=True, exist_ok=True)
-            agents_dest.write_text(content + "\n", encoding="utf-8")
-            print("CREATE AGENTS.md")
+                USER_CODEX.mkdir(parents=True, exist_ok=True)
+                agents_dest.write_text(content + "\n", encoding="utf-8")
+                print("CREATE AGENTS.md")
 
-    # Import hooks
-    hooks_src = extracted / "optional" / "codex" / "hooks"
-    if has_hooks and hooks_src.exists():
-        hooks_dest_dir = USER_CODEX / "hooks"
-        hooks_dest_dir.mkdir(parents=True, exist_ok=True)
-        for fpath in sorted(hooks_src.rglob("*")):
-            if fpath.is_dir():
-                continue
-            rel = fpath.relative_to(hooks_src)
-            dest = hooks_dest_dir / rel
-            if dest.exists():
-                if mode == "skip-existing":
-                    print(f"SKIP hook: {rel}")
+        # Import hooks
+        hooks_src = extracted / "optional" / "codex" / "hooks"
+        if has_hooks and hooks_src.exists():
+            hooks_dest_dir = USER_CODEX / "hooks"
+            hooks_dest_dir.mkdir(parents=True, exist_ok=True)
+            for fpath in sorted(hooks_src.rglob("*")):
+                if fpath.is_dir():
                     continue
-                bkp = backup_skill_dir(dest)
-                print(f"BACKUP hook: {bkp}")
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(fpath, dest)
-            if fpath.suffix == ".py":
-                os.chmod(dest, fpath.stat().st_mode | 0o111)
-            print(f"IMPORT hook: {rel}")
-        print("NOTE: Check hook configuration manually. Hooks are not auto-enabled.")
+                rel = fpath.relative_to(hooks_src)
+                dest = hooks_dest_dir / rel
+                if dest.exists():
+                    if mode == "skip-existing":
+                        print(f"SKIP hook: {rel}")
+                        continue
+                    bkp = backup_skill_dir(dest)
+                    print(f"BACKUP hook: {bkp}")
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(fpath, dest)
+                if fpath.suffix == ".py":
+                    os.chmod(dest, fpath.stat().st_mode | 0o111)
+                print(f"IMPORT hook: {rel}")
+            print("NOTE: Check hook configuration manually. Hooks are not auto-enabled.")
 
-    # Import prompts
-    prompts_src = extracted / "optional" / "codex" / "prompts"
-    if has_prompts and prompts_src.exists():
-        prompts_dest_dir = USER_CODEX / "prompts"
-        prompts_dest_dir.mkdir(parents=True, exist_ok=True)
-        for fpath in sorted(prompts_src.rglob("*")):
-            if fpath.is_dir():
-                continue
-            rel = fpath.relative_to(prompts_src)
-            dest = prompts_dest_dir / rel
-            if dest.exists():
-                if mode == "skip-existing":
-                    print(f"SKIP prompt: {rel}")
+        # Import prompts
+        prompts_src = extracted / "optional" / "codex" / "prompts"
+        if has_prompts and prompts_src.exists():
+            prompts_dest_dir = USER_CODEX / "prompts"
+            prompts_dest_dir.mkdir(parents=True, exist_ok=True)
+            for fpath in sorted(prompts_src.rglob("*")):
+                if fpath.is_dir():
                     continue
-                bkp = backup_skill_dir(dest)
-                print(f"BACKUP prompt: {bkp}")
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(fpath, dest)
-            print(f"IMPORT prompt: {rel}")
+                rel = fpath.relative_to(prompts_src)
+                dest = prompts_dest_dir / rel
+                if dest.exists():
+                    if mode == "skip-existing":
+                        print(f"SKIP prompt: {rel}")
+                        continue
+                    bkp = backup_skill_dir(dest)
+                    print(f"BACKUP prompt: {bkp}")
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(fpath, dest)
+                print(f"IMPORT prompt: {rel}")
 
-    print("\nImport complete.")
+        print("\nImport complete.")
     return 0
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Safe Codex Skill manager")
@@ -1402,6 +1412,7 @@ def build_parser() -> argparse.ArgumentParser:
     # Migration commands
     p = sub.add_parser("export")
     p.add_argument("--output", default="")
+    p.add_argument("--skill", default="")
     p.add_argument("--include-agents", action="store_true")
     p.add_argument("--include-hooks", action="store_true")
     p.add_argument("--include-prompts", action="store_true")
