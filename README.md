@@ -262,9 +262,14 @@ python3 ~/.agents/skills/skill-manager/scripts/skillctl.py export --include-all-
 
 # 允许包含疑似密钥的文件（默认排除）
 python3 ~/.agents/skills/skill-manager/scripts/skillctl.py export --include-all-user-config --allow-secrets
+
+# 导出并自动同步到 GitHub 云端备份
+python3 ~/.agents/skills/skill-manager/scripts/skillctl.py export --allow-secrets --push
 ```
 
 **默认输出路径**: `~/Desktop/codex-skills-migration-<时间戳>.tar.gz`
+
+**`--push` 说明**：加上 `--push` 后，导出的 `.tar.gz` 会同时复制到 skill-manager 仓库的 `exports/` 目录并自动 `git commit` + `git push` 到 GitHub，实现本地一份、云端一份。
 
 **默认排除项**:
 | 类型 | 示例 |
@@ -399,6 +404,7 @@ $SCRIPT restore <路径> --yes
 $SCRIPT locations
 $SCRIPT export
 $SCRIPT export --include-all-user-config
+$SCRIPT export --allow-secrets --push
 $SCRIPT verify-archive <archive.tar.gz>
 $SCRIPT import <archive.tar.gz>
 $SCRIPT import <archive.tar.gz> --yes
